@@ -1,0 +1,34 @@
+machine:
+  environment:
+    GOPATH:  /go
+    PROJECT: $CIRCLE_PROJECT_REPONAME
+    IMPORT:  github.com/$CIRCLE_PROJECT_USERNAME/$PROJECT
+    GOPKG:   go1.6.2.linux-amd64.tar.gz
+
+checkout:
+  post:
+    - sudo mkdir -p $GOPATH
+    - sudo chown $USER $GOPATH
+    - mkdir -p $GOPATH/src/$IMPORT
+    - cp -r  * $GOPATH/src/$IMPORT
+
+dependencies:
+  pre:
+    - sudo rm -rf /usr/local/go
+    - curl -O https://storage.googleapis.com/golang/$GOPKG
+    - sudo tar -xf $GOPKG -C /usr/local
+  override:
+    - echo 'export GOPATH=$GOPATH' >> ~/.circlerc
+
+test:
+  pre:
+    - go version
+    - go env
+  override:
+    - go test -v -race $IMPORT/...
+  post:
+    - cd /go && GOOS=darwin  GOARCH=amd64 go build -o $CIRCLE_ARTIFACTS/darwin/amd64/$PROJECT      $IMPORT
+    - cd /go && GOOS=freebsd GOARCH=amd64 go build -o $CIRCLE_ARTIFACTS/freebsd/amd64/$PROJECT     $IMPORT
+    - cd /go && GOOS=linux   GOARCH=amd64 go build -o $CIRCLE_ARTIFACTS/linux/amd64/$PROJECT       $IMPORT
+    - cd /go && GOOS=windows GOARCH=amd64 go build -o $CIRCLE_ARTIFACTS/windows/amd64/$PROJECT.exe $IMPORT
+    - find $CIRCLE_ARTIFACTS -type f -exec shasum -a 256 {} \; | tee $CIRCLE_ARTIFACTS/sha256.txt
